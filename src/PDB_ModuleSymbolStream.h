@@ -62,6 +62,28 @@ namespace PDB
 			}
 		}
 
+		// Iterates all records in the stream, passing their byte-offset within the
+		// coalesced symbol stream. Offsets match the `ibSym` field of global
+		// S_PROCREF/S_LPROCREF records, allowing cross-stream resolution.
+		template <typename F>
+		void ForEachSymbolWithOffset(F&& functor) const PDB_NO_EXCEPT
+		{
+			size_t offset = sizeof(uint32_t);
+			while (offset < m_stream.GetSize())
+			{
+				const CodeView::DBI::Record* record = m_stream.GetDataAtOffset<const CodeView::DBI::Record>(offset);
+				const uint32_t recordSize = GetCodeViewRecordSize(record);
+				functor(record, static_cast<uint32_t>(offset));
+				offset = BitUtil::RoundUpToMultiple<size_t>(offset + sizeof(CodeView::DBI::RecordHeader) + recordSize, 4u);
+			}
+		}
+
+		// Returns the record at a given byte-offset within the coalesced stream.
+		PDB_NO_DISCARD inline const CodeView::DBI::Record* GetRecordAtOffset(uint32_t offset) const PDB_NO_EXCEPT
+		{
+			return m_stream.GetDataAtOffset<const CodeView::DBI::Record>(offset);
+		}
+
 	private:
 		CoalescedMSFStream m_stream;
 
